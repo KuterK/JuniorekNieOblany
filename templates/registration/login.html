@@ -1,0 +1,12 @@
+{% extends "base.html" %}
+{% block title %}Logowanie{% endblock %}
+{% block content %}
+<div class="auth-card">
+  <h1 class="mb-6 text-3xl font-bold">Zaloguj się</h1>
+  <form method="post" class="space-y-4">
+    {% csrf_token %}{{ form.as_p }}
+    <button class="w-full rounded bg-cyan-400 px-4 py-3 font-semibold text-slate-950">Zaloguj</button>
+  </form>
+  <p class="mt-4 text-slate-400">Nie masz konta? <a class="text-cyan-300" href="{% url 'register' %}">Zarejestruj się</a></p>
+</div>
+{% endblock %}

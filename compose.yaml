@@ -1,0 +1,78 @@
+services:
+  postgres:
+    image: postgres:17.6-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-juniorek}
+      POSTGRES_USER: ${POSTGRES_USER:-juniorek}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-juniorek}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-juniorek} -d ${POSTGRES_DB:-juniorek}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  redis:
+    image: redis:8.2-alpine
+    restart: unless-stopped
+    command: redis-server --appendonly yes
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  web:
+    build: .
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER:-juniorek}:${POSTGRES_PASSWORD:-juniorek}@postgres:5432/${POSTGRES_DB:-juniorek}
+      REDIS_URL: redis://redis:6379/0
+      CACHE_REDIS_URL: redis://redis:6379/1
+    command: ["./docker-entrypoint.sh", "web"]
+    volumes:
+      - static_data:/app/staticfiles
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  worker:
+    build: .
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER:-juniorek}:${POSTGRES_PASSWORD:-juniorek}@postgres:5432/${POSTGRES_DB:-juniorek}
+      REDIS_URL: redis://redis:6379/0
+      CACHE_REDIS_URL: redis://redis:6379/1
+    command: ["./docker-entrypoint.sh", "worker"]
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  caddy:
+    image: caddy:2.10.2-alpine
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - static_data:/srv/static:ro
+      - caddy_data:/data
+    depends_on:
+      - web
+
+volumes:
+  postgres_data:
+  redis_data:
+  static_data:
+  caddy_data:

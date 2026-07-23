@@ -1,30 +1,23 @@
-Stack Technologiczny
-
-Obszar	Technologia
-Frontend	Astro 5
-Biblioteka UI	React 19
-Język frontendu	TypeScript
-Stylowanie	Tailwind CSS
-Komponenty UI	shadcn/ui
-Edytor kodu	Monaco Editor
-Backend	FastAPI
-Język backendu	Python 3.13+
-Walidacja danych	Pydantic v2
-ORM	SQLAlchemy 2.0
-Migracje	Alembic
-Baza danych	PostgreSQL
-Cache / kolejki	Redis (planowany do skalowania)
-Autoryzacja	JWT (HttpOnly Cookies)
-Integracja AI	OpenRouter
-Model LLM	GPT-5 Mini (łatwa zmiana modelu)
-Komunikacja API	REST API
-Testy backendu	pytest
-Testy frontend/E2E	Playwright
-Konteneryzacja	Docker + Docker Compose
-CI/CD	GitHub Actions
-Kontrola wersji	Git + GitHub
-Jakość kodu	Ruff + mypy
-Zarządzanie zależnościami	uv
-Monitoring błędów	Sentry (rekomendowany)
-Hosting	DigitalOcean
-
+| Obszar          | Rekomendacja                                      |
+| --------------- | ------------------------------------------------- |
+| Runtime         | Python 3.13, przypięta wersja patch               |
+| Framework       | Django 6.0, przypięta wersja patch                |
+| UI              | Django Templates + HTMX                           |
+| JavaScript      | Alpine.js tylko tam, gdzie HTMX nie wystarcza     |
+| CSS             | Tailwind CSS                                      |
+| Baza            | PostgreSQL + psycopg 3                            |
+| AI              | SDK jednego dostawcy, jeden model dla MVP         |
+| Struktura AI    | Pydantic + wersjonowany schemat                   |
+| Zadania         | Celery                                            |
+| Broker          | Redis                                             |
+| Cache           | Redis z oddzielnym namespace’em lub bazą logiczną |
+| Serwer          | Gunicorn                                          |
+| Proxy           | Caddy                                             |
+| Kontenery       | Docker Compose                                    |
+| Zależności      | uv + `pyproject.toml` + lockfile                  |
+| Testy           | pytest, pytest-django, testy z mockowanym API LLM |
+| Jakość          | Ruff, mypy stopniowo, pre-commit                  |
+| CI/CD           | GitHub Actions                                    |
+| Błędy           | Sentry z filtrowaniem kodu i sekretów             |
+| Metryki MVP     | PostgreSQL + logi + Sentry                        |
+| Metryki później | Prometheus + Grafana                              |

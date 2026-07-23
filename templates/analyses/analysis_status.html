@@ -1,0 +1,52 @@
+<div id="analysis-status"
+  {% if analysis.status == "pending" or analysis.status == "processing" %}
+    hx-get="{% url 'analysis-status' analysis.pk %}" hx-trigger="load delay:1s" hx-swap="outerHTML"
+  {% endif %}>
+  {% if analysis.status == "pending" or analysis.status == "processing" %}
+    <div class="rounded-xl border border-cyan-800 bg-cyan-950/40 p-8 text-center">
+      <h1 class="text-2xl font-bold">Analizuję kod…</h1>
+      <p class="mt-2 text-slate-400">Zwykle trwa to mniej niż 15 sekund.</p>
+    </div>
+  {% elif analysis.status == "failed" %}
+    <div class="rounded-xl border border-red-800 bg-red-950/40 p-6">
+      <h1 class="text-2xl font-bold">Nie udało się wykonać analizy</h1>
+      <p class="mt-2">{{ analysis.error_message }}</p>
+      <form method="post" action="{% url 'analysis-regenerate' analysis.pk %}" class="mt-4">
+        {% csrf_token %}<button class="rounded bg-red-400 px-4 py-2 text-slate-950">Spróbuj ponownie</button>
+      </form>
+    </div>
+  {% else %}
+    <div class="mb-6 flex flex-wrap items-start justify-between gap-4">
+      <div>
+        <form method="post" action="{% url 'analysis-title' analysis.pk %}" class="flex gap-2">
+          {% csrf_token %}
+          <input name="title" value="{{ analysis.title }}" maxlength="200"
+                 class="rounded border border-slate-700 bg-slate-900 px-3 py-2 text-2xl font-bold">
+          <button class="rounded bg-slate-700 px-3">Zapisz</button>
+        </form>
+        <p class="mt-2 text-slate-400">{{ analysis.language }} · {{ analysis.created_at|date:"d.m.Y H:i" }}</p>
+      </div>
+      <div class="flex gap-2">
+        <form method="post" action="{% url 'analysis-regenerate' analysis.pk %}">
+          {% csrf_token %}<button class="rounded bg-cyan-400 px-4 py-2 text-slate-950">Regeneruj</button>
+        </form>
+        <form method="post" action="{% url 'analysis-delete' analysis.pk %}">
+          {% csrf_token %}<button class="rounded bg-red-500 px-4 py-2">Usuń</button>
+        </form>
+      </div>
+    </div>
+    <section class="space-y-5">
+      <article class="card"><h2>Podsumowanie</h2><p>{{ analysis.summary|linebreaksbr }}</p></article>
+      <article class="card"><h2>Jak działa kod</h2><p>{{ analysis.explanation|linebreaksbr }}</p></article>
+      <article class="card"><h2>Wzorce i koncepcje</h2><p>{{ analysis.concepts|linebreaksbr }}</p></article>
+      <article class="card"><h2>Błędy i pułapki</h2><p>{{ analysis.pitfalls|linebreaksbr }}</p></article>
+      <article class="card"><h2>Wyjaśnienie dla juniora</h2><p>{{ analysis.junior_explanation|linebreaksbr }}</p></article>
+      <article class="card"><h2>Kod źródłowy</h2><pre><code>{{ analysis.code }}</code></pre></article>
+    </section>
+    <form method="post" action="{% url 'analysis-rating' analysis.pk %}" class="mt-6 flex items-center gap-3">
+      {% csrf_token %}<span>Czy analiza była pomocna?</span>
+      <button name="rating" value="helpful" class="rounded bg-emerald-600 px-3 py-2">👍 Tak</button>
+      <button name="rating" value="unhelpful" class="rounded bg-slate-700 px-3 py-2">👎 Nie</button>
+    </form>
+  {% endif %}
+</div>
