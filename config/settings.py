@@ -1,42 +1,58 @@
+from __future__ import annotations
+
 import os
 from pathlib import Path
-from urllib.parse import urlparse
 
-import sentry_sdk
-from pydantic import AliasChoices, Field
+from pydantic import ValidationError
 from pydantic_settings import BaseSettings, SettingsConfigDict
+
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
 
-class Environment(BaseSettings):
+class EnvironmentSettings(BaseSettings):
+    django_secret_key: str = "unsafe-development-key"
+    django_debug: bool = True
+    django_allowed_hosts: str = "localhost,127.0.0.1"
+
+    postgres_db: str = "juniorek"
+    postgres_user: str = "juniorek"
+    postgres_password: str = "juniorek"
+    postgres_host: str = "127.0.0.1"
+    postgres_port: int = 5432
+
+    celery_broker_url: str = "redis://127.0.0.1:6379/0"
+    celery_result_backend: str = "redis://127.0.0.1:6379/1"
+    django_cache_url: str = "redis://127.0.0.1:6379/2"
+
+    llm_provider: str = "mock"
+    llm_api_key: str = ""
+    llm_model: str = ""
+
+    sentry_dsn: str = ""
+
     model_config = SettingsConfigDict(
-        env_file=BASE_DIR / ".env", env_file_encoding="utf-8", extra="ignore"
+        env_file=BASE_DIR / ".env",
+        env_file_encoding="utf-8",
+        case_sensitive=False,
+        extra="ignore",
     )
 
-    secret_key: str = Field(
-        default="dev-only-insecure-key",
-        validation_alias=AliasChoices("DJANGO_SECRET_KEY", "SECRET_KEY"),
-    )
-    debug: bool = Field(default=False, validation_alias="DJANGO_DEBUG")
-    allowed_hosts: str = Field(
-        default="localhost,127.0.0.1", validation_alias="DJANGO_ALLOWED_HOSTS"
-    )
-    database_url: str = Field(
-        default="postgresql://juniorek:juniorek@localhost:5432/juniorek",
-        validation_alias="DATABASE_URL",
-    )
-    redis_url: str = Field(default="redis://localhost:6379/0", validation_alias="REDIS_URL")
-    cache_redis_url: str = Field(
-        default="redis://localhost:6379/1", validation_alias="CACHE_REDIS_URL"
-    )
-    sentry_dsn: str = Field(default="", validation_alias="SENTRY_DSN")
+
+try:
+    env = EnvironmentSettings()
+except ValidationError as exc:
+    raise RuntimeError(f"Niepoprawna konfiguracja środowiska: {exc}") from exc
 
 
-env = Environment()
-SECRET_KEY = env.secret_key
-DEBUG = env.debug
-ALLOWED_HOSTS = [host.strip() for host in env.allowed_hosts.split(",") if host.strip()]
+SECRET_KEY = env.django_secret_key
+DEBUG = env.django_debug
+ALLOWED_HOSTS = [
+    host.strip()
+    for host in env.django_allowed_hosts.split(",")
+    if host.strip()
+]
+
 
 INSTALLED_APPS = [
     "django.contrib.admin",
@@ -48,6 +64,8 @@ INSTALLED_APPS = [
     "django_htmx",
     "analyses",
 ]
+
+
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
@@ -55,10 +73,14 @@ MIDDLEWARE = [
     "django.middleware.csrf.CsrfViewMiddleware",
     "django.contrib.auth.middleware.AuthenticationMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",
-    "django_htmx.middleware.HtmxMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
+    "django_htmx.middleware.HtmxMiddleware",
 ]
+
+
 ROOT_URLCONF = "config.urls"
+
+
 TEMPLATES = [
     {
         "BACKEND": "django.template.backends.django.DjangoTemplates",
@@ -71,61 +93,100 @@ TEMPLATES = [
                 "django.contrib.messages.context_processors.messages",
             ],
         },
-    }
+    },
 ]
+
+
 WSGI_APPLICATION = "config.wsgi.application"
-ASGI_APPLICATION = "config.asgi.application"
 
 
-def parse_database_url(url: str) -> dict[str, str | int]:
-    parsed = urlparse(url)
-    if parsed.scheme == "sqlite":
-        name = parsed.path.lstrip("/") or ":memory:"
-        return {"ENGINE": "django.db.backends.sqlite3", "NAME": name}
-    return {
+DATABASES = {
+    "default": {
         "ENGINE": "django.db.backends.postgresql",
-        "NAME": parsed.path.lstrip("/"),
-        "USER": parsed.username or "",
-        "PASSWORD": parsed.password or "",
-        "HOST": parsed.hostname or "",
-        "PORT": str(parsed.port or 5432),
+        "NAME": env.postgres_db,
+        "USER": env.postgres_user,
+        "PASSWORD": env.postgres_password,
+        "HOST": env.postgres_host,
+        "PORT": env.postgres_port,
         "CONN_MAX_AGE": 60,
     }
-
-
-DATABASES = {"default": parse_database_url(env.database_url)}
-CACHES = {
-    "default": {
-        "BACKEND": "django.core.cache.backends.redis.RedisCache",
-        "LOCATION": env.cache_redis_url,
-        "KEY_PREFIX": "juniorek",
-    }
 }
+
+
 AUTH_PASSWORD_VALIDATORS = [
-    {"NAME": "django.contrib.auth.password_validation.UserAttributeSimilarityValidator"},
-    {"NAME": "django.contrib.auth.password_validation.MinimumLengthValidator"},
-    {"NAME": "django.contrib.auth.password_validation.CommonPasswordValidator"},
-    {"NAME": "django.contrib.auth.password_validation.NumericPasswordValidator"},
+    {
+        "NAME": (
+            "django.contrib.auth.password_validation."
+            "UserAttributeSimilarityValidator"
+        )
+    },
+    {
+        "NAME": (
+            "django.contrib.auth.password_validation."
+            "MinimumLengthValidator"
+        )
+    },
+    {
+        "NAME": (
+            "django.contrib.auth.password_validation."
+            "CommonPasswordValidator"
+        )
+    },
+    {
+        "NAME": (
+            "django.contrib.auth.password_validation."
+            "NumericPasswordValidator"
+        )
+    },
 ]
+
+
 LANGUAGE_CODE = "pl"
 TIME_ZONE = "Europe/Warsaw"
 USE_I18N = True
 USE_TZ = True
+
+
 STATIC_URL = "static/"
 STATIC_ROOT = BASE_DIR / "staticfiles"
 STATICFILES_DIRS = [BASE_DIR / "static"]
+
+
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
+
+
 LOGIN_URL = "login"
-LOGIN_REDIRECT_URL = "analysis-list"
+LOGIN_REDIRECT_URL = "analyses:list"
 LOGOUT_REDIRECT_URL = "login"
-CELERY_BROKER_URL = env.redis_url
-CELERY_RESULT_BACKEND = env.redis_url
-CELERY_TASK_TIME_LIMIT = 15
-CELERY_TASK_SOFT_TIME_LIMIT = 13
+
+
+CELERY_BROKER_URL = env.celery_broker_url
+CELERY_RESULT_BACKEND = env.celery_result_backend
 CELERY_TASK_TRACK_STARTED = True
-CELERY_TASK_ALWAYS_EAGER = os.getenv("CELERY_TASK_ALWAYS_EAGER", "").lower() == "true"
+CELERY_TASK_TIME_LIMIT = 60
+CELERY_TASK_SOFT_TIME_LIMIT = 45
+CELERY_BROKER_CONNECTION_RETRY_ON_STARTUP = True
+CELERY_TASK_SERIALIZER = "json"
+CELERY_RESULT_SERIALIZER = "json"
+CELERY_ACCEPT_CONTENT = ["json"]
+
+
+CACHES = {
+    "default": {
+        "BACKEND": "django.core.cache.backends.redis.RedisCache",
+        "LOCATION": env.django_cache_url,
+    }
+}
+
+
+LLM_PROVIDER = env.llm_provider
+LLM_API_KEY = env.llm_api_key
+LLM_MODEL = env.llm_model
+
 
 if env.sentry_dsn:
+    import sentry_sdk
+
     sentry_sdk.init(
         dsn=env.sentry_dsn,
         send_default_pii=False,
